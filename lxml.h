@@ -338,6 +338,23 @@ int XMLDocument_load(XMLDocument *doc, const char *path)
                 i++;
                 continue;
             }
+            
+             // Special nodes
+            if (buf[i + 1] == '!') {
+                while (buf[i] != ' ' && buf[i] != '>')
+                    lex[lexi++] = buf[i++];
+                lex[lexi] = '\0';
+
+                // Comments
+                if (!strcmp(lex, "<!--")) {
+                    lex[lexi] = '\0';
+                    while (!ends_with(lex, "-->")) {
+                        lex[lexi++] = buf[i++];
+                        lex[lexi] = '\0';
+                    }
+                    continue;
+                }
+            }
 
             // Set current node
             curr_node = XMLNode_new(curr_node);
