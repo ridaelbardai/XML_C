@@ -1,11 +1,6 @@
-    <!-- hada commentaire -->
 
-<root>
-    <inner>
-    <!-- hada commentaire -->
-        <more attr="val1" attr="val2">hada howa more</more>
-    </inner>
-    <!-- hada commentaire -->
-
-    <another />
-</root>
+<struct name="Person">
+    <field name="name" type="string" />
+    <field name="age" type="int" />
+    <description>This defines a person</description>
+</struct>

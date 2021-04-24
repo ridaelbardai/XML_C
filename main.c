@@ -7,13 +7,15 @@ int main()
     if (XMLDocument_load(&doc, "test.xml"))
     {
 
-        XMLNode* more = XMLNode_child(XMLNode_child(XMLNode_child(doc.root, 0), 0), 0);
-        printf("%s: %s\n", more->tag, more->inner_text);
-       
+        XMLNode *str = XMLNode_child(doc.root, 0);
+        printf("Struct: %s\n", XMLNode_attr_val(str, "name"));
 
-        XMLNode* another = XMLNode_child(XMLNode_child(doc.root, 0),1);
-        printf("%s: %s \n", another->tag, another->inner_text);
-   
+        XMLNodeList *fields = XMLNode_children(str, "field");
+        for (int i = 0; i < fields->size; i++)
+        {
+            XMLNode *field = XMLNodeList_at(fields, i);
+            printf(" %s (%s)\n", XMLNode_attr_val(field, "name"), XMLNode_attr_val(field, "type"));
+        }
 
         XMLDocument_free(&doc);
     }
@@ -21,4 +23,3 @@ int main()
     return 0;
 }
 
-// <root><inner><more>hada more</more></inner><another>hada other </another></root>
