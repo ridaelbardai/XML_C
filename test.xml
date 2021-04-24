@@ -1,0 +1,6 @@
+<root>
+    <inner>
+        <more attr="val1" attr="val2">hada howa more</more>
+    </inner>
+    <another attr="val1" attr="val2">hada other </another>
+</root>
