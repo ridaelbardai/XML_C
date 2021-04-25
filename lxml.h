@@ -8,6 +8,7 @@
 #ifndef TRUE
 #define TRUE 1
 #endif
+
 #ifndef FALSE
 #define FALSE 0
 #endif
@@ -16,223 +17,277 @@
 //  Definitions
 //
 
-int ends_with(const char *haystack, const char *needle)
+struct _XMLAttribut
 {
-    int h_len = strlen(haystack);
-    int n_len = strlen(needle);
+    char *clef;
+    char *valeur;
+};
+typedef struct _XMLAttribut XMLAttribut;
 
-    if (h_len < n_len)
+void XMLAttribut_free(XMLAttribut *attr);
+
+struct _XMLAttributListe
+{
+    int taille_tas;
+    int taille;
+    XMLAttribut *donees;
+};
+typedef struct _XMLAttributListe XMLAttributListe;
+
+void XMLAttributListe_init(XMLAttributListe *Liste);
+void XMLAttributListe_ajouter(XMLAttributListe *Liste, XMLAttribut *attr);
+
+struct _XMLBaliseListe
+{
+    int taille_tas;
+    int taille;
+    struct _XMLBalise **donees;
+};
+typedef struct _XMLBaliseListe XMLBaliseListe;
+
+void XMLBaliseListe_init(XMLBaliseListe *Liste);
+void XMLBaliseListe_ajouter(XMLBaliseListe *Liste, struct _XMLBalise *node);
+struct _XMLBalise *XMLBaliseListe_pos(XMLBaliseListe *Liste, int index);
+void XMLBaliseListe_free(XMLBaliseListe *Liste);
+
+struct _XMLBalise
+{
+    char *tag;
+    char *text;
+    struct _XMLBalise *parent;
+    XMLAttributListe attributs;
+    XMLBaliseListe fils;
+};
+typedef struct _XMLBalise XMLBalise;
+
+XMLBalise *XMLBalise_new(XMLBalise *parent);
+void XMLBalise_free(XMLBalise *node);
+XMLBalise *XMLBalise_fils_pos(XMLBalise *parent, int index);
+XMLBaliseListe *XMLBalise_fils(XMLBalise *parent, const char *tag);
+char *XMLBalise_attr_val(XMLBalise *node, char *clef);
+XMLAttribut *XMLBalise_attr(XMLBalise *node, char *clef);
+
+struct _XMLDocument
+{
+    XMLBalise *root;
+};
+typedef struct _XMLDocument XMLDocument;
+
+int XMLDocument_charger(XMLDocument *doc, const char *path);
+int XMLDocument_ecrire(XMLDocument *doc, const char *path, int indent);
+void XMLDocument_free(XMLDocument *doc);
+
+/**
+ * fini_par
+ * entrées: haystaque(la phrase à vérifier)
+ *          needle(la valeur qui doit se trouver à la fin de haystaque)
+ * sorties: TRUE si c'est vrai
+ * cette fonction est utilisé pour savoir si un commentaire se términe par "-->"
+ */
+int fini_par(const char *haystack, const char *needle)
+{
+    int h_taille = strlen(haystack);
+    int n_taille = strlen(needle);
+
+    if (h_taille < n_taille)
         return FALSE;
 
-    for (int i = 0; i < n_len; i++)
+    for (int i = 0; i < n_taille; i++)
     {
-        if (haystack[h_len - n_len + i] != needle[i])
+        if (haystack[h_taille - n_taille + i] != needle[i])
             return FALSE;
     }
 
     return TRUE;
 }
 
-struct _XMLAttribute
+/**
+ * libérer les valeurs d'un attribut temporaire
+ */
+void XMLAttribut_free(XMLAttribut *attr)
 {
-    char *key;
-    char *value;
-};
-typedef struct _XMLAttribute XMLAttribute;
-
-void XMLAttribute_free(XMLAttribute *attr);
-
-struct _XMLAttributeList
+    free(attr->clef);
+    free(attr->valeur);
+}
+/**
+ * initialiser la liste des attributs
+ */
+void XMLAttributListe_init(XMLAttributListe *Liste)
 {
-    int heap_size;
-    int size;
-    XMLAttribute *data;
-};
-typedef struct _XMLAttributeList XMLAttributeList;
-
-void XMLAttributeList_init(XMLAttributeList *list);
-void XMLAttributeList_add(XMLAttributeList *list, XMLAttribute *attr);
-
-struct _XMLNodeList
-{
-    int heap_size;
-    int size;
-    struct _XMLNode **data;
-};
-typedef struct _XMLNodeList XMLNodeList;
-
-void XMLNodeList_init(XMLNodeList *list);
-void XMLNodeList_add(XMLNodeList *list, struct _XMLNode *node);
-struct _XMLNode *XMLNodeList_at(XMLNodeList *list, int index);
-void XMLNodeList_free(XMLNodeList *list);
-
-struct _XMLNode
-{
-    char *tag;
-    char *inner_text;
-    struct _XMLNode *parent;
-    XMLAttributeList attributes;
-    XMLNodeList children;
-};
-typedef struct _XMLNode XMLNode;
-
-XMLNode *XMLNode_new(XMLNode *parent);
-void XMLNode_free(XMLNode *node);
-XMLNode *XMLNode_child(XMLNode *parent, int index);
-XMLNodeList *XMLNode_children(XMLNode *parent, const char *tag);
-char *XMLNode_attr_val(XMLNode *node, char *key);
-XMLAttribute *XMLNode_attr(XMLNode *node, char *key);
-
-struct _XMLDocument
-{
-    XMLNode *root;
-    char *version;
-    char *encoding;
-};
-typedef struct _XMLDocument XMLDocument;
-
-int XMLDocument_load(XMLDocument *doc, const char *path);
-int XMLDocument_write(XMLDocument *doc, const char *path, int indent);
-void XMLDocument_free(XMLDocument *doc);
-
-//
-//  Implementation
-//
-
-void XMLAttribute_free(XMLAttribute *attr)
-{
-    free(attr->key);
-    free(attr->value);
+    Liste->taille_tas = 1;
+    Liste->taille = 0;
+    Liste->donees = (XMLAttribut *)malloc(sizeof(XMLAttribut) * Liste->taille_tas);
 }
 
-void XMLAttributeList_init(XMLAttributeList *list)
+/**
+ * ajouter un attribut à une liste des attributs
+ */
+void XMLAttributListe_ajouter(XMLAttributListe *Liste, XMLAttribut *attr)
 {
-    list->heap_size = 1;
-    list->size = 0;
-    list->data = (XMLAttribute *)malloc(sizeof(XMLAttribute) * list->heap_size);
-}
-
-void XMLAttributeList_add(XMLAttributeList *list, XMLAttribute *attr)
-{
-    while (list->size >= list->heap_size)
+    while (Liste->taille >= Liste->taille_tas)
     {
-        list->heap_size *= 2;
-        list->data = (XMLAttribute *)realloc(list->data, sizeof(XMLAttribute) * list->heap_size);
+        Liste->taille_tas *= 2;
+        Liste->donees = (XMLAttribut *)realloc(Liste->donees, sizeof(XMLAttribut) * Liste->taille_tas);
     }
 
-    list->data[list->size++] = *attr;
+    Liste->donees[Liste->taille++] = *attr;
 }
 
-void XMLNodeList_init(XMLNodeList *list)
+/**
+ * initialiser une balise
+ */
+void XMLBaliseListe_init(XMLBaliseListe *Liste)
 {
-    list->heap_size = 1;
-    list->size = 0;
-    list->data = (XMLNode **)malloc(sizeof(XMLNode *) * list->heap_size);
+    Liste->taille_tas = 1;
+    Liste->taille = 0;
+    Liste->donees = (XMLBalise **)malloc(sizeof(XMLBalise *) * Liste->taille_tas);
 }
 
-void XMLNodeList_add(XMLNodeList *list, XMLNode *node)
+/**
+ * ajouter une balise à une liste des balises
+ */
+void XMLBaliseListe_ajouter(XMLBaliseListe *Liste, XMLBalise *node)
 {
-    while (list->size >= list->heap_size)
+    while (Liste->taille >= Liste->taille_tas)
     {
-        list->heap_size *= 2;
-        list->data = (XMLNode **)realloc(list->data, sizeof(XMLNode *) * list->heap_size);
+        Liste->taille_tas *= 2;
+        Liste->donees = (XMLBalise **)realloc(Liste->donees, sizeof(XMLBalise *) * Liste->taille_tas);
     }
 
-    list->data[list->size++] = node;
+    Liste->donees[Liste->taille++] = node;
 }
 
-XMLNode *XMLNodeList_at(XMLNodeList *list, int index)
+/**
+ * récupérer une balise selon sa position dans une liste des balise
+ */
+XMLBalise *XMLBaliseListe_pos(XMLBaliseListe *Liste, int index)
 {
-    return list->data[index];
+    return Liste->donees[index];
+}
+/**
+ * libérer une liste des balises
+ */
+void XMLBaliseListe_free(XMLBaliseListe *Liste)
+{
+    free(Liste);
 }
 
-void XMLNodeList_free(XMLNodeList *list)
+/**
+ * XMLBalise_new
+ * entrées: parent(balise père de la balise à créer)
+ * sortie : nouvelle balise créer
+ * cette fonction crée une balise et l'initialise
+ */
+XMLBalise *XMLBalise_new(XMLBalise *parent)
 {
-    free(list);
-}
-
-XMLNode *XMLNode_new(XMLNode *parent)
-{
-    XMLNode *node = (XMLNode *)malloc(sizeof(XMLNode));
+    XMLBalise *node = (XMLBalise *)malloc(sizeof(XMLBalise));
     node->parent = parent;
     node->tag = NULL;
-    node->inner_text = NULL;
-    XMLAttributeList_init(&node->attributes);
-    XMLNodeList_init(&node->children);
+    node->text = NULL;
+    XMLAttributListe_init(&node->attributs);
+    XMLBaliseListe_init(&node->fils);
     if (parent)
-        XMLNodeList_add(&parent->children, node);
+        XMLBaliseListe_ajouter(&parent->fils, node);
     return node;
 }
-
-void XMLNode_free(XMLNode *node)
+/**
+ * libérer une balise
+ */
+void XMLBalise_free(XMLBalise *node)
 {
     if (node->tag)
         free(node->tag);
-    if (node->inner_text)
-        free(node->inner_text);
-    for (int i = 0; i < node->attributes.size; i++)
-        XMLAttribute_free(&node->attributes.data[i]);
+    if (node->text)
+        free(node->text);
+    for (int i = 0; i < node->attributs.taille; i++)
+        XMLAttribut_free(&node->attributs.donees[i]);
     free(node);
 }
-
-XMLNode *XMLNode_child(XMLNode *parent, int index)
+/**
+ * récupérer un fils d'une balise selon sa positin (index)
+ */
+XMLBalise *XMLBalise_fils_pos(XMLBalise *parent, int index)
 {
-    return parent->children.data[index];
+    return parent->fils.donees[index];
 }
 
-XMLNodeList *XMLNode_children(XMLNode *parent, const char *tag)
+/**
+ * XMLBalise_fils
+ * entrées: balise père, nom de la balise à chercher
+ * sortie : liste des balises
+ * cette fonction reçoit une balise est le nom d'une balise
+ * qui peut être dedant, si la balise <tag/> est trouvé elle retourne
+ * touts ces données
+ */
+XMLBaliseListe *XMLBalise_fils(XMLBalise *parent, const char *tag)
 {
-    XMLNodeList *list = (XMLNodeList *)malloc(sizeof(XMLNodeList));
-    XMLNodeList_init(list);
+    XMLBaliseListe *Liste = (XMLBaliseListe *)malloc(sizeof(XMLBaliseListe));
+    XMLBaliseListe_init(Liste);
 
-    for (int i = 0; i < parent->children.size; i++)
+    for (int i = 0; i < parent->fils.taille; i++)
     {
-        XMLNode *child = parent->children.data[i];
+        XMLBalise *child = parent->fils.donees[i];
         if (!strcmp(child->tag, tag))
-            XMLNodeList_add(list, child);
+            XMLBaliseListe_ajouter(Liste, child);
     }
-
-    return list;
+    return Liste;
 }
 
-
-char *XMLNode_attr_val(XMLNode *node, char *key)
+/**
+ * recoit une balise et le nom de l'un de ces attributs
+ * pour retourner ca valeur
+ */
+char *XMLBalise_attr_val(XMLBalise *node, char *clef)
 {
-    for (int i = 0; i < node->attributes.size; i++)
+    for (int i = 0; i < node->attributs.taille; i++)
     {
-        XMLAttribute attr = node->attributes.data[i];
-        if (!strcmp(attr.key, key))
-            return attr.value;
+        XMLAttribut attr = node->attributs.donees[i];
+        if (!strcmp(attr.clef, clef))
+            return attr.valeur;
     }
     return NULL;
 }
 
-XMLAttribute *XMLNode_attr(XMLNode *node, char *key)
+/**
+ * recoit une balise et le nom de l'un de ces attributs
+ * pour retourner tout l'attribut
+ */
+XMLAttribut *XMLBalise_attr(XMLBalise *node, char *clef)
 {
-    for (int i = 0; i < node->attributes.size; i++)
+    for (int i = 0; i < node->attributs.taille; i++)
     {
-        XMLAttribute *attr = &node->attributes.data[i];
-        if (!strcmp(attr->key, key))
+        XMLAttribut *attr = &node->attributs.donees[i];
+        if (!strcmp(attr->clef, clef))
             return attr;
     }
     return NULL;
 }
 
-enum _TagType
+//enumération des types d'un tag
+enum _typeTag
 {
-    TAG_START,
-    TAG_INLINE
+    TAG_DEBUT,
+    TAG_ENLIGNE
 };
-typedef enum _TagType TagType;
+typedef enum _typeTag typeTag;
 
-static TagType parse_attrs(char *buf, int *i, char *lex, int *lexi, XMLNode *curr_node)
-{
-    XMLAttribute curr_attr = {0, 0};
+
+/**
+ * cette fonction permet d'identifier
+ * si cette balise est de type :
+ * DEBUT: <tag></tag>
+ * ENLIGNE: <tag/>
+ * et traiter les attributs et leurs valeurs
+ */
+static typeTag parse_attrs(char *buf, int *i, char *lex, int *lexi, XMLBalise *curr_node)
+{ //variable pour stocker les attributs en cours
+    XMLAttribut curr_attr = {0, 0};
+    //tantque c'est pas la fin de la balise
     while (buf[*i] != '>')
     {
         lex[(*lexi)++] = buf[(*i)++];
 
-        // Tag name
+        // stocker nom de la balise (tag)
         if (buf[*i] == ' ' && !curr_node->tag)
         {
             lex[*lexi] = '\0';
@@ -242,141 +297,172 @@ static TagType parse_attrs(char *buf, int *i, char *lex, int *lexi, XMLNode *cur
             continue;
         }
 
-        // Usually ignore spaces
+        // ignorer les espaces
         if (lex[*lexi - 1] == ' ')
         {
             (*lexi)--;
         }
 
-        // Attribute key
+        // Nom de l'attribut est stocké après avoir trouver "="
         if (buf[*i] == '=')
         {
             lex[*lexi] = '\0';
-            curr_attr.key = strdup(lex);
+            curr_attr.clef = strdup(lex);
             *lexi = 0;
             continue;
         }
 
-        // Attribute value
+        // Valeur de l'attribut commence après (")
         if (buf[*i] == '"')
-        {
-            if (!curr_attr.key)
+        { //nom de l'attribut non définit
+            if (!curr_attr.clef)
             {
-                fprintf(stderr, "Value has no key\n");
-                return TAG_START;
+                fprintf(stderr, "valeur sans clé d'attribut\n");
+                return TAG_DEBUT;
             }
-
+            //réinitialisation
             *lexi = 0;
             (*i)++;
-
+            //sinon tantque c'est pas la fin de la valeur de l'attribut
             while (buf[*i] != '"')
                 lex[(*lexi)++] = buf[(*i)++];
             lex[*lexi] = '\0';
-            curr_attr.value = strdup(lex);
-            XMLAttributeList_add(&curr_node->attributes, &curr_attr);
-            curr_attr.key = NULL;
-            curr_attr.value = NULL;
+            //stocker la valeur dans le champ val de curr_attr
+            curr_attr.valeur = strdup(lex);
+            //ajouter l'attribut à la liste des attributs de cette balise
+            XMLAttributListe_ajouter(&curr_node->attributs, &curr_attr);
+            //réinitialisation
+            curr_attr.clef = NULL;
+            curr_attr.valeur = NULL;
             *lexi = 0;
             (*i)++;
             continue;
         }
 
-        // Inline node
+        // balise ENLIGNE de ce type : <balise />
         if (buf[*i - 1] == '/' && buf[*i] == '>')
         {
             lex[*lexi] = '\0';
             if (!curr_node->tag)
                 curr_node->tag = strdup(lex);
             (*i)++;
-            return TAG_INLINE;
+            //retourner le type ENLIGNE
+            return TAG_ENLIGNE;
         }
     }
 
-    return TAG_START;
+    return TAG_DEBUT;
 }
 
-int XMLDocument_load(XMLDocument *doc, const char *path)
+
+/**
+ * XMLDocument_charger
+ * entrées: doc(variable qui va contenir la balise racine )
+ *          initialisé avant et passe par les paramètre
+ *          path(chemin du fichier XML)
+ * sortie : False en cas d'erreur de syntax dans le fichier XML
+ * 
+ * -cette fonction recoit une variable de type XMLDocument
+ *  chaque document est identifié par une balise racine
+ * -ici doc recpresente la racine du document
+ */
+int XMLDocument_charger(XMLDocument *doc, const char *path)
 {
+    //ouverture du fichier
     FILE *file = fopen(path, "r");
     if (!file)
     {
-        fprintf(stderr, "Could not load file from '%s'\n", path);
+        //erreur lors l'ouverture
+        fprintf(stderr, "ne peut pas ouvrir le fichier '%s'\n", path);
         return FALSE;
     }
 
+    //pour calculer la taille du fichier
     fseek(file, 0, SEEK_END);
-    int size = ftell(file);
+    int taille = ftell(file);
+    //revenir au debut
     fseek(file, 0, SEEK_SET);
 
-    char *buf = (char *)malloc(sizeof(char) * size + 1);
-    fread(buf, 1, size, file);
+    //la variable buf stocke le texte chargé
+    char *buf = (char *)malloc(sizeof(char) * taille + 1);
+    fread(buf, 1, taille, file);
     fclose(file);
-    buf[size] = '\0';
+    //indiquer la fin du texte
+    buf[taille] = '\0';
 
-    doc->root = XMLNode_new(NULL);
+    //balise racine
+    doc->root = XMLBalise_new(NULL);
 
+    //variable temporaire pour stocker le contenue en traitement
     char lex[256];
+    // indice pour parcourir "lex"
     int lexi = 0;
+    // indice pour parcourir le texte chargé dan "buf"
     int i = 0;
 
-    XMLNode *curr_node = doc->root;
+    //contient à chaque fois la balise en traitement
+    XMLBalise *curr_node = doc->root;
 
+    //tant que c'est pas la fin du fichier
     while (buf[i] != '\0')
-    {
+    { //si le fichier commence par "<"
         if (buf[i] == '<')
-        {
+        { //indiquer la fin du text chargé
             lex[lexi] = '\0';
 
-            // Inner text
+            // si il existe un texte avant la première balise
             if (lexi > 0)
             {
                 if (!curr_node)
                 {
-                    fprintf(stderr, "Text outside of document\n");
+                    fprintf(stderr, "Texte avant les balises\n");
                     return FALSE;
                 }
-
-                curr_node->inner_text = strdup(lex);
+                //si curr_node contient deja une balise
+                //donc c'est le texte de la balise courante
+                curr_node->text = strdup(lex);
                 lexi = 0;
             }
 
-            // End of node
+            // si c'est une balise de fermeture
             if (buf[i + 1] == '/')
             {
                 i += 2;
+                //tantque c'est pas la fin de la balise charger son nom dan lex
                 while (buf[i] != '>')
                     lex[lexi++] = buf[i++];
                 lex[lexi] = '\0';
 
                 if (!curr_node)
                 {
-                    fprintf(stderr, "Already at the root\n");
+                    fprintf(stderr, "Dejà dans la racine\n");
                     return FALSE;
                 }
-
+                //balise d'ouverture et de fermeture non identiques
                 if (strcmp(curr_node->tag, lex))
                 {
-                    fprintf(stderr, "Mismatched tags (%s != %s)\n", curr_node->tag, lex);
+                    fprintf(stderr, "Tags différents <%s> != </%s>\n", curr_node->tag, lex);
                     return FALSE;
                 }
-
+                //fin de traitement revenir à la balise parent pour traiter l'autre fils si existe
                 curr_node = curr_node->parent;
                 i++;
                 continue;
             }
 
-            // Special nodes
+            // pour les commentaires
             if (buf[i + 1] == '!')
             {
                 while (buf[i] != ' ' && buf[i] != '>')
                     lex[lexi++] = buf[i++];
                 lex[lexi] = '\0';
 
-                // Comments
+                // Commentaire
                 if (!strcmp(lex, "<!--"))
                 {
+                    //doit finir par "-->"
                     lex[lexi] = '\0';
-                    while (!ends_with(lex, "-->"))
+                    while (!fini_par(lex, "-->"))
                     {
                         lex[lexi++] = buf[i++];
                         lex[lexi] = '\0';
@@ -385,19 +471,19 @@ int XMLDocument_load(XMLDocument *doc, const char *path)
                 }
             }
 
-            // Set current node
-            curr_node = XMLNode_new(curr_node);
+            // MAJ balise courante
+            curr_node = XMLBalise_new(curr_node);
 
-            // Start tag
+            // balise de début
             i++;
-            if (parse_attrs(buf, &i, lex, &lexi, curr_node) == TAG_INLINE)
+            if (parse_attrs(buf, &i, lex, &lexi, curr_node) == TAG_ENLIGNE)
             {
                 curr_node = curr_node->parent;
                 i++;
                 continue;
             }
 
-            // Set tag name if none
+            // mettre nom de la balise
             lex[lexi] = '\0';
             if (!curr_node->tag)
                 curr_node->tag = strdup(lex);
@@ -407,6 +493,7 @@ int XMLDocument_load(XMLDocument *doc, const char *path)
             i++;
             continue;
         }
+        //lecture normale
         else
         {
             lex[lexi++] = buf[i++];
@@ -418,7 +505,7 @@ int XMLDocument_load(XMLDocument *doc, const char *path)
 
 void XMLDocument_free(XMLDocument *doc)
 {
-    XMLNode_free(doc->root);
+    XMLBalise_free(doc->root);
 }
 
 #endif // LITTLE_XML_H

@@ -4,17 +4,17 @@ int main()
 {
     XMLDocument doc;
 
-    if (XMLDocument_load(&doc, "test.xml"))
+    if (XMLDocument_charger(&doc, "test.xml"))
     {
 
-        XMLNode *str = XMLNode_child(doc.root, 0);
-        printf("Struct: %s\n", XMLNode_attr_val(str, "name"));
+        XMLBalise *str = XMLBalise_fils_pos(doc.root, 0);
+        printf("Struct: %s\n", XMLBalise_attr_val(str, "name"));
 
-        XMLNodeList *fields = XMLNode_children(str, "field");
-        for (int i = 0; i < fields->size; i++)
+        XMLBaliseListe *fields = XMLBalise_fils(str, "field");
+        for (int i = 0; i < fields->taille; i++)
         {
-            XMLNode *field = XMLNodeList_at(fields, i);
-            printf(" %s (%s)\n", XMLNode_attr_val(field, "name"), XMLNode_attr_val(field, "type"));
+            XMLBalise *field = XMLBaliseListe_pos(fields, i);
+            printf(" %s (%s)\n", XMLBalise_attr_val(field, "name"), XMLBalise_attr_val(field, "type"));
         }
 
         XMLDocument_free(&doc);
