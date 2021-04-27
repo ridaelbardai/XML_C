@@ -1,6 +1,6 @@
-<struct name="Person">
+<struct nom="Personne">
 
-    <field name="name" type="string" />
-    <field name="age" type="int" />
+    <champ nom="nom" type="string" />
+    <champ nom="age" type="int" />
     <description>This defines a person</description>
 </struct>
